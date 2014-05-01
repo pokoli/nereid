@@ -215,14 +215,19 @@ class Nereid(Flask):
 
     def get_urls(self):
         """
-        Return the URL rules for routes formed by decorating methods with the
-        :func:`~nereid.helpers.route` decorator.
+        Return the URL rules and their translations for routes formed by
+        decorating methods with the :func:`~nereid.helpers.route` decorator
+        and translated with the :func:`~nereid.helpers.route_translations`
+        decorator.
 
         This method goes through all the models and their methods in the pool
         of the loaded database and looks for the `_url_rules` attribute in
-        them. If there are URLs defined, it is added to the url map.
+        them. If there are URLs defined, it is added to the url map. It also
+        looks for the `_url_rules_translations` attribute in order to get
+        the translations.
         """
         rules = []
+        translations = {}
         models = Pool._pool[self.database_name]['model']
 
         for model_name, model in models.iteritems():
@@ -232,16 +237,27 @@ class Nereid(Flask):
                 if not hasattr(f, '_url_rules'):
                     continue
 
-                for rule in f._url_rules:
+                for rule, options in f._url_rules:
+
                     rules.append(
                         self.url_rule_class(
-                            rule[0],
+                            rule,
                             endpoint='.'.join([model_name, f_name]),
-                            **rule[1]
+                            **options
                         )
                     )
+                    trans = getattr(f, '_url_rules_translations', {})
+                    for lang, translated_rule in trans.iteritems():
+                        mapping = translations.setdefault(lang, [])
+                        mapping.append(
+                            self.url_rule_class(
+                                rule,
+                                endpoint='.'.join([model_name, f_name]),
+                                **options
+                            )
+                        )
 
-        return rules
+        return rules, translations
 
     def load_cache(self):
         """

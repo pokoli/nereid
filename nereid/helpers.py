@@ -456,3 +456,35 @@ def route(rule, **options):
         f._url_rules.append((rule, options))
         return f
     return decorator
+
+
+def route_translation(language, rule):
+    """Add a translation for the given route.
+
+    .. versionadded:: 3.0.8.0
+
+    This is used in conjuntion with the route decorator in order to add a
+    translation for the url in the given language. So the route will be
+    applied in the translation.
+    .. code-block:: python
+        :emphasize-lines: 1,7
+
+        from nereid import route
+
+        class Product:
+            __name__ = 'product.product'
+
+            @classmethod
+            @route('/product/<uri>')
+            @route_translation('es_ES', '/product/<uri>')
+            def render_product(cls, uri):
+                ...
+                return 'Product Information'
+
+    """
+    def decorator(f):
+        if not hasattr(f, '_url_rules_translations'):
+            f._url_rules_translations = {}
+        f._url_rules_translations.update({language: rule})
+        return f
+    return decorator

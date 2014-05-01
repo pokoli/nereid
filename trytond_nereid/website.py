@@ -9,7 +9,7 @@ from wtforms import TextField, PasswordField, validators, BooleanField
 from flask.ext.login import login_user, logout_user
 
 from nereid import jsonify, flash, render_template, url_for, cache, \
-    current_user, route
+    current_user, route, route_translation
 from nereid.globals import request
 from nereid.exceptions import WebsiteNotFound
 from nereid.helpers import login_required, key_from_list, get_flashed_messages
@@ -188,6 +188,7 @@ class WebSite(ModelSQL, ModelView):
 
     @classmethod
     @route('/login', methods=['GET', 'POST'])
+    @route_translation('es_ES', '/entrar')
     def login(cls):
         """
         Simple login based on the email and password
@@ -241,6 +242,7 @@ class WebSite(ModelSQL, ModelView):
 
     @classmethod
     @route('/logout')
+    @route_translation('es_ES', '/salir')
     def logout(cls):
         "Log the user out"
         logout_user()
@@ -367,7 +369,8 @@ class WebSite(ModelSQL, ModelView):
         if cache_rv is not None:
             return cache_rv
 
-        url_rules = app.get_urls()[:]
+        url_rules = []
+        rules, translated_rules = app.get_urls()
 
         # Add the static url
         url_rules.append(
@@ -393,10 +396,16 @@ class WebSite(ModelSQL, ModelView):
                     '/', redirect_to='/%s' % self.default_locale.code,
                 ),
             )
-            url_map.add(Submount('/<locale>', url_rules))
+            for locale in self.locales:
+                locale_rules = translated_rules.get(locale.language.code, [])
+                locale_rules += url_rules[:]
+                url_map.add(Submount('/<locale>', locale_rules))
         else:
             # Create a new map with the given URLs
-            map(url_map.add, url_rules)
+            lang = self.default_locale.language.code
+            default_rules = translated_rules.get(lang, [])
+            default_rules += url_rules[:]
+            map(url_map.add, default_rules)
 
         # Add the rules from the application's url map filled through the
         # route decorator or otherwise
